@@ -1,0 +1,947 @@
+import math
+import numpy
+import numpy as np
+import tkinter as tk
+from math import *
+
+import matplotlib.pyplot as plt
+import numpy as np
+from sympy import symbols
+from sympy.physics.continuum_mechanics.beam import Beam
+numpy.set_printoptions(3, suppress=True)
+
+
+tn = int(input('nhập tổng số node : '))  # total nodes
+te = int(input('nhập tổng element : '))  # total elements
+xco = []  # x co ordinate of nodes
+yco = []  # y co ordinate of nodes
+#A_values = []
+for i in range(tn):
+    x = float(input('nhập tọa độ X của node ' + str(i + 1) + ' in mm : '))
+    y = float(input('nhập tọa độ y của node' + str(i + 1) + ' in mm : '))
+    xco.append(x)
+    yco.append(y)
+
+##print(xco)
+##print(yco)
+
+
+E = float(input('Enter the Modulous of Elasticity in N/mm2 : '))
+snofel = []  # start node of elements
+enofel = []  # end node of elements
+lenofel = []  # length of the element
+elcon = []  # constant of the element
+cosofel = []  # cos of element
+sinofel = []  # sin of element
+#A=0.01
+sup=['P= A cho từng thanh' ,
+     'I= A cho tổng thanh']
+A_value=[]
+print(sup)
+con=str(input('\nnhập loại A của thanh ( tổng hay từng thanh): '))
+#if condition3 in['U', 'u']:
+if con in ['P', 'p']:
+
+    #A=float(input('Nhập diện tích tiết diện A của phần tử ' + str(i + 1) + ' trong m2: '))
+    for i in range(te):
+        A = float(input('Nhập diện tích tiết diện A của phần tử ' + str(i + 1) + ' trong m2: '))
+        a = int(input('nhập node đầu của element' + str(i + 1) + ' : '))
+        b = int(input('nhập node saucủa element ' + str(i + 1) + ' : '))
+
+        x1 = float(xco[a - 1])
+        y1 = float(yco[a - 1])
+        x2 = float(xco[b - 1])
+        y2 = float(yco[b - 1])
+        l = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        con = A * E / l
+        cos = (x2 - x1) / l
+        sin = (y2 - y1) / l
+
+        snofel.append(a)
+        enofel.append(b)
+        lenofel.append(l)
+        elcon.append(con)
+        cosofel.append(cos)
+        sinofel.append(sin)
+        A_value.append(A)
+elif  con in ['I', 'i']:
+    B = float(input('Nhập diện tích tiết diện A  trong m2: '))
+
+    for i in range(te):
+        A = B
+        a = int(input('nhập node đầu của element' + str(i + 1) + ' : '))
+        b = int(input('nhập node saucủa element ' + str(i + 1) + ' : '))
+
+        x1 = float(xco[a - 1])
+        y1 = float(yco[a - 1])
+        x2 = float(xco[b - 1])
+        y2 = float(yco[b - 1])
+        l = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        con = A * E / l
+        cos = (x2 - x1) / l
+        sin = (y2 - y1) / l
+
+        snofel.append(a)
+        enofel.append(b)
+        lenofel.append(l)
+        elcon.append(con)
+        cosofel.append(cos)
+        sinofel.append(sin)
+        A_value.append(A)
+        #A_values.append(A)
+
+
+#print('snofel:',snofel) điểm đầu (1,2,3)
+#print('enofel',enofel) điểm cuối e(2,3,1)
+ ##print(lenofel)
+##print(elcon)
+##print(cosofel)
+##print(sinofel)
+
+elstmat = []  # element stiffness matrix
+
+for i in range(te):
+    cc = float(cosofel[i]) ** 2
+    ss = float(sinofel[i]) ** 2
+    cs = float(cosofel[i]) * float(sinofel[i])
+
+    mat = elcon[i] * numpy.array([[cc, cs, -cc, -cs],
+                                  [cs, ss, -cs, -ss],
+                                  [-cc, -cs, cc, cs],
+                                  [-cs, -ss, cs, ss]])
+    #print('mat',mat)
+
+    elstmat.append(mat)#
+#print('eslmat:',elstmat)
+
+
+gstmatmap = []  ## Global stiffness matrix mapping, gstmatmap will be the sqare matrix of tn*
+for i in range(te):  ## do this for each elements
+    ## Lặp qua từng phần tử để lắp ráp ma trận độ cứng vào đúng vị trí
+    m = snofel[i] * 2  ## lấy giá trị của node đầu snofel(i) * 2
+    n = enofel[i] * 2  ## taking the end node of element(i) and multiply by 2
+    add = [m - 1, m, n - 1, n]  ## Address of columns and rows of gstmatmap for elemet(i)
+    # if startnode is 1 and end node is 2 then add=[1,2,3,4]
+    # if startnode is 1 and end node is 3 then add=[1,2,5,6]
+    #print('add,' add)
+    gmat = numpy.zeros((tn * 2, tn * 2))  ## global stiffness matrix loaded with zeros for element(i)
+    elmat = elstmat[i]  ## taking the element stiffness matrix of element(i)
+    for j in range(4):
+        for k in range(4):
+            a = add[j] - 1  ## addressing hang` of GST matrix for element(i)
+            b = add[k] - 1  ## addressing cot. of GST matrix for element(i)
+            #print('a la' ,a)
+            #print('b' , b)
+            gmat[a, b] = elmat[j, k]  ## gán từng giá trị của hàng và ột elmat vào gmat
+            #print('gmat,', gmat)
+    gstmatmap.append(gmat)  # (+ từng cột và hàng của ma trận E để có mtgb)
+##    print(numpy.around(gmat, 3))
+#print('gstmap\n',gstmatmap)
+
+GSM = numpy.zeros((tn * 2, tn * 2))  ## creating an empyty GSM matrix
+
+for mat in gstmatmap:
+    GSM = GSM + mat  ## adding all the matrix in the gstmatmap list
+    #print('GSM',GSM)
+    # this will result in assembled stiffness matrix of the truss structure
+
+print('\nma trận tổng thể:\n')
+print(numpy.around(GSM, 3))
+numpy.set_printoptions(3, suppress=False)
+
+
+# -----------------------Boundry condition and Loading---------------------#
+
+#displist = []
+#forcelist = []
+#for i in range(tn):
+ #   a = str('u') + str(i + 1)
+  #  displist.append(a)
+   # b = str('v') + str(i + 1)
+    #displist.append(b)
+    #c = str('fx') + str(i + 1)
+    #forcelist.append(c)
+#  d = str('fy') + str(i + 1)
+#  forcelist.append(d)
+
+##print(displist)
+##print(forcelist)
+
+# print('\n\nĐiều kiện biên\n')
+
+
+# dispmat = numpy.ones((tn * 2, 1))
+#dispmat1 = numpy.ones((tn * 2, 1))
+# alphad =int(input('nhập góc cuủa x gối nghiêng so với phương X: '))
+# Chuyển đổi từ độ sang radian
+# cosd=math.cos(math.radians(alphad))
+
+# sind = math.sin(math.radians(alphad))
+# print('cos',cosd)
+# print('sin',sind)
+
+# tinhtoancosd=np.array([[cosd, sind],
+                     # [-sind, cosd]])
+# print('tinhtoancosin',tinhtoancosd)
+
+#print(f"cos({alphads}°) = {cos_value}")
+
+
+
+
+
+
+
+supcondition2=['U= có gối nghiêng', #goi co dinh
+                'Q= không có gối nghiêng'] #(vertical is free to move),q(y)=0',
+print(supcondition2)
+
+condition3= str(input('\nnhập loại gối: '))
+if condition3 in['U', 'u']:
+    displist = []
+    forcelist = []
+    for i in range(tn):
+        a = str('u') + str(i + 1)
+        displist.append(a)
+        b = str('v') + str(i + 1)
+        displist.append(b)
+        c = str('fx') + str(i + 1)
+        forcelist.append(c)
+        d = str('fy') + str(i + 1)
+        forcelist.append(d)
+
+    ##print(displist)
+    ##print(forcelist)
+
+    print('\n\nĐiều kiện biên\n')
+    #goinghieng=int(input('nhập số lượng gối nghiêng '))
+    cosnew = []
+    sinnew = []
+    dispmat = np.ones((tn * 2, 1))  # Ma trận dịch chuyển
+
+    # Nhập số lượng gối nghiêng
+    tonggoinghieng = int(input('có bao nhiêu gối nghiêng: '))
+
+    # Khởi tạo danh sách để lưu các ma trận chuyển đổi
+    tinhtoancosd_list = []
+    cosangleBla=[]#cosf'x gối nghiêng để tính fx
+
+    sinangleBla=[]#sinf'y gối nghiêng để tính fy
+    # Nhập góc của từng gối nghiêng và tính cos, sin
+    for i in range(tonggoinghieng):
+        alphad = int(input(f'nhập góc cuả gối nghiêng thứ {i + 1} so với phương X: '))
+        angle_B = 90 - alphad
+        cosd = math.cos(math.radians(alphad))
+        sind = math.sin(math.radians(alphad))##
+        #
+        cosangle_B=math.cos(math.radians(angle_B ))
+        sinangle_B= math.sin(math.radians(angle_B))#
+
+        ##
+        cosangleBla.append(cosangle_B)#lưu trữ goc
+        sinangleBla.append(sinangle_B)# lưu trũ
+        print('cos', cosd)
+        print('sin', sind)
+        tinhtoancosd = np.array([[cosd, sind],
+                                 [-sind, cosd]])
+        tinhtoancosd_list.append(tinhtoancosd)
+    #print(tinhtoancosd_list )
+    #print(cosangleBla=
+    #print sinangleBla=
+
+    # Chuyển danh sách thành mảng numpy 3D nếu có nhiều gối nghiêng
+    if len(tinhtoancosd_list) > 1:
+        tinhtoancosd_array = np.array(tinhtoancosd_list)
+    else:
+        tinhtoancosd_array = tinhtoancosd_list[0]
+    #print('tinhtoancosin', tinhtoancosd_array)
+
+    # print(f"cos({alphads}°) = {cos_value}")
+    tsupn = int(input('tổng node có ràng buộc là  : '))  # total number of supported nodes
+    supcondition = ['P = gối cố định',  # goi co dinh
+                    'H = gối di đông theo phương X   (vertical is free to move),q(y)=0',
+                    'V = gối di động theo phương Y (Horizontal is free to move),q(x)=0',
+                    'K= gối nghiêng ']
+                    #'K2= gối di động  y']
+    toadogoinghieng = np.ones((tn * 2, 1))#toa độ d3x d3y
+
+    for i in range(tsupn):
+        supn = int(input('\n nhâp node có ràng buộc: '))  # supported node
+        for a in supcondition:
+            print(a)
+
+        condition = str(input('\nnhập loại ràng buộc: '))
+        if condition in ['P', 'p']:
+            dispmat[supn * 2 - 2, 0] = 0  # DOF theo X =0
+            dispmat[supn * 2 - 1, 0] = 0  # DOF theo y = 0
+        elif condition in ['H', 'h']:
+            dispmat[supn * 2 - 1, 0] = 0
+        elif condition in ['V', 'v']:
+            dispmat[supn * 2 - 2, 0] = 0
+        elif condition in ['K', 'k']:
+            supcondition1 = ['K1= gối di động  X',]
+                             #'K2= gối di động  y']
+            for a in supcondition1:
+                print(a)
+
+            condition1 = str(input('\nnhập loại ràng buộc K: '))
+            if condition1 in ['K1', 'k1']:
+                dispmat[supn * 2 - 1, 0] = 0
+                toadogoinghieng[supn * 2 - 1, 0]=0
+                toadogoinghieng[supn * 2 - 2, 0] = 0
+
+                dispmat[supn * 2 - 2, 0] = 1
+            #elif condition1 in ['K2', 'k2']:
+                #dispmat[supn * 2 - 1, 0] = 1
+                #dispmat[supn * 2 - 2, 0] = 0
+
+            # DOF theo y = 0
+
+        else:
+            print('Please enter valid entries')
+    print('0 thì tại đó không có chuyển vị'
+          '1 là tại đ có chuyển vị phải tính (VD như q5, q6)')
+    print('\n ma trận chuyển vị sau khi bỏ điều kiện biên:\n', dispmat)
+
+    #num_rows = dispmat.shape[0]
+    #internum = len(dispmat) // 2  # lay so hang v số cột của dismap
+    #print('num_row\n', num_rows)
+    #print('internum', internum)
+    # Tạo ma trận phan lực
+    newmat = np.zeros((tn * 2, 1))
+
+    # Lắp đầy giá trị mới ( tại gia trị 1 là x1, y1)
+    newmat[dispmat == 0] = 1
+    print('matran phản lực\n',newmat )
+
+    #d3new = []  # matranD'3x, d'3y
+
+    #for i in range(int(internum)):
+        #if dispmat[2 * i, 0] == 1 and dispmat[2 * i + 1, 0] == 1:
+         #   a = dispmat[i + 1, 0]
+    #   b = dispmat[i * 2 + 1, 0]
+    #   c = np.vstack([a, b])
+    #    print('c\n', c)
+    #    d = np.matmul(tinhtoancosd, c)
+    #     print('c', c)
+    #     print('d', d)
+    #     d3new.append(d)
+    # Tạo ma trận đơn vị 3x3
+    #  print('d3new', d3new)
+
+    # matranloai = np.array(d3new)
+    #  print('matrand3new\n', matranloai)
+    matrixtn = np.zeros((tn, 2))
+    mtdv = np.eye(2)#ma trận đơn vị
+    print('mtdv', mtdv)
+    matran0 = np.zeros((2, 2))#ma trận 0
+    print('mt0:', matran0)
+    # tao ra ma tran goi nghieng
+    size = tn * 2
+    large_matrix = np.zeros((size, size))
+    for i in range(tn - 1):
+        large_matrix[i * 2:i * 2 + 2, i * 2:i * 2 + 2] = mtdv # ma trận với đường chéo đơn vị và cuối là tinhtoancosd
+    large_matrix[-2:, -2:] = tinhtoancosd#ma trận T
+    mtgnTH = np.copy(large_matrix)  # T1
+    print('ma trận TH\n', mtgnTH)  # t1
+    mtgnTTC = np.matmul(mtgnTH, GSM)  # ma trận T1.K
+    print('mtT1.K\n', mtgnTTC)
+    A_mtgnTC = np.transpose(mtgnTH)  # chuyenvi cua ma tran goi nghieng tc K^T
+    E = np.matmul(A_mtgnTC, mtgnTH)
+    print('matranT1.k22\n:', E)
+    mtgnTQ = np.matmul(mtgnTTC, A_mtgnTC)  # ma trận T1.K.T^t
+    print('ma trận toàn cục sau khi nhân với ma trận T:\n', mtgnTQ)
+
+    print('\n .......lực tác dụng vào node.......  \n')
+    forcemat = numpy.zeros((tn * 2, 1))
+    tainut = np.zeros((tn*2, 1))
+    tlon = int(input(' Lực tác dụng vào bao nhiêu node?:\n'))   # total number of loaded nodes
+
+    print('\nChiều dương X sang phải\nchiều dương F(y) lên trên (nếu ngược lại nhập số âm')
+    sup1 = ['H= Có lực nghiêng',
+            'G =  KHông có lực nghiêng ']
+
+
+    for i in range(tlon):
+        print(sup1)
+        lon = int(input('\nLực tác dụng vào node nào?: '))
+        con123 = str(input('\nnhập loại lực P thanh : '))
+        if con123 in ['H', 'h']:
+            #lon = int(input('\nLực tác dụng vào node nào?: '))  # Loaded node
+            goc = int(input('nhập góc của lực tác động so với phương X: '))
+            nhapluc=int(input('lực tác dụng vào node là : '))
+
+            fx =nhapluc* math.cos(math.radians(goc))
+            fy = nhapluc*math.sin(math.radians(goc))
+            #print('lực fx theo góc', fx)
+            #print('lực fy theo góc', fy)
+
+            forcemat [lon * 2 - 2, 0] = fx
+            forcemat [lon * 2 - 1, 0] = fy
+            tainut [lon * 2 - 2, 0] = fx
+            tainut [lon * 2 - 1, 0] = fy
+
+            #print('tải tại nút là', forcemat)
+
+        elif con123 in ['G', 'g']:
+            #lon = int(input('\nLực tac dụng vào node nào? : '))  # Loaded node
+            fx = float(input('Lực Fx in N : '))
+            fy = float(input('lực Fy in N : '))
+
+            tainut[lon * 2 - 2, 0] = fx
+            tainut[lon * 2 - 1, 0] = fy
+            forcemat [lon * 2 - 2, 0] = fx
+            forcemat [lon * 2 - 1, 0] = fy
+        #print('tải tại nút là', forcemat)
+
+
+        print ('tai tại nút là:\n', tainut)
+
+
+
+
+    num_uniform_loads = int(input("Nhập số lượng lực phân bố đều: "))
+
+    for load in range(num_uniform_loads):
+        element_index = int(input(f"Nhập chỉ số element cho lực phân bố đều thứ {load + 1}: "))
+        load_value = float(input(f"Nhập giá trị của lực phân bố đều thứ {load + 1} (N): "))
+        # Tính toán và thêm lực phân bố đều vào ma trận tải trọng
+        start_node = snofel[element_index - 1]
+        end_node = enofel[element_index - 1]
+        fx = load_value / 2  # Lực tác động theo phương x
+        fy = load_value / 2  # Lực tác động theo phương y
+
+        forcemat[(start_node - 1) * 2, 0] += fx
+        forcemat[(start_node - 1) * 2 + 1, 0] -= fy
+        forcemat[(end_node - 1) * 2, 0] += fx
+        forcemat[(end_node - 1) * 2 + 1, 0] -= fy
+
+        #phantuvanut = forcemat
+        #print('tải tại phần tử   là\n', trutai)
+
+    trutai = forcemat - tainut  # taiphantu
+    print('tải tại phần tử và nút  là', forcemat)
+    print('tải tại phần tử   là\n', trutai)
+    #print('tải tại nút:\n',tainut )
+
+    ###_________________Matrix Reduction_________________###
+
+    print('ma trận chuyển vị', dispmat) #0 là có điều kiện biên
+    rcdlist = []
+
+    for i in range(tn * 2):
+        if dispmat[i, 0] == 0:
+            rcdlist.append(i)
+    print('rcdlist ', rcdlist) # các chỗ Q=0 của dismap để tí bỏ hàng đó
+
+    #print('forcemat:\n', forcemat)
+
+    rrgsm = numpy.delete(mtgnTQ, rcdlist, 0)  # row reduction
+    crgsm = numpy.delete(rrgsm, rcdlist, 1)  # column reduction
+    rgsm = crgsm  # reduced global stiffness matrix
+    rforcemat = numpy.delete(forcemat, rcdlist, 0)  # reduced force mat
+    rdispmat = numpy.delete(dispmat, rcdlist, 0)  # reduced disp mat
+    #print('\nma trận toàn cục là:\n', GSM)
+    print('\nma trận toàn cục sau khi loại bỏ điều kiện biên\n', crgsm)
+    print('\nma trận của lực sau khi loại bỏ điều kiện biênt\n', rforcemat)
+    # print('rdispmat\n',rdispmat)
+
+    ###_______________Solving____________________###if crgsm.shape[0] == crgsm.shape[1]:
+    # Kiểm tra kích thước của ma trận đã giảm
+    print('\nKích thước của ma trận sau khi giảm(nXn):\n', crgsm.shape)
+
+    # abc = np.linalg.inv(crgsm)
+    # print('ma tran nghich dao la:\n',abc)
+    with np.printoptions(precision=8, suppress=False):
+        dispresult = numpy.linalg.solve(crgsm, rforcemat)
+    #tongchuyenvi = dispresult + dispmat
+    #print('tổng chuyển vị là :', tongchuyenvi)
+        print('vậy chuyển vị của nút cần tính là\n', dispresult)
+        chuyenvila = np.zeros(dispmat.shape)
+
+        for i in range(dispmat.shape[0]):
+            if dispmat[i, 0] == 0:
+                chuyenvila[i, 0] = 1
+    # print('chuyenvila:\n',chuyenvila)
+    # print('chuyenvisau',chuyenvisau)
+    with np.printoptions(precision=8, suppress=False):
+       new_value = dispresult
+    #print('new value', new_value)
+    count = 0
+
+    # Duyệt qua từng phần tử của ma trận A
+    with np.printoptions(precision=10, suppress=False):
+        for i in range(chuyenvila.shape[0]):
+        # Nếu phần tử bằng 0 và vẫn còn giá trị để chèn
+            if chuyenvila[i, 0] == 0 and count < new_value.shape[0]:
+            # Chèn giá trị tương ứng từ values_to_insert vào A
+                chuyenvila[i, 0] = new_value[count, 0]
+            # Tăng biến đếm lên 1
+                count += 1
+
+    # print('chuyenvila:',chuyenvila)
+        chuyenvila[chuyenvila == 1] = 0
+        print('ma trận chuyển vị là :\n', chuyenvila)
+
+    luctotnhat = np.matmul(mtgnTQ, chuyenvila) -forcemat #- đi lực doc truc và  nút:PLLK (f'3x và f'3)
+    #print(luctotnhat)
+    # Ngưỡng để thay thế các giá trị nhỏ
+    threshold = 1e-9
+
+    # Thay thế các giá trị nhỏ hơn ngưỡng bằng 0
+    luctotnhat[np.abs(luctotnhat) < threshold] = 0
+    print('\n\nphản lực liên kết là của gối nghiêng theo dx` dy` là:\n')
+    print(luctotnhat)
+    # Khởi tạo ma trận C với cùng kích thước như pllk và B
+
+
+    # Duyệt qua các phần tử của ma trận B và A để tạo ma trận C
+
+    # # Số lượng hàng của ma trận  toadogoinghieng
+    num_rows_toadogoinghieng = toadogoinghieng.shape[0]
+    #print(numrowtoadogoinghieng)
+    # Cập nhật các phản lực của gối nghiêng dựa trên điều kiện B[i,0] == 0
+    for i in range(num_rows_toadogoinghieng):
+        if toadogoinghieng[i, 0] == 0:
+            toadogoinghieng[i, 0] = luctotnhat[i, 0]
+    # Tìm các hàng trong B có giá trị không bằng 1
+    rows_to_keeptoadogoinghieng = np.where(toadogoinghieng[:, 0] != 1)[0]
+    # Xóa các hàng từ ma trậntoa do goi nghieng  khong = 1
+    toadogoimoi= toadogoinghieng[rows_to_keeptoadogoinghieng]
+    print('vậy phản lực liên kết tại gối nghiêng là (theo phương f.x và f.y) :\n',toadogoimoi)
+    # Tìm các hàng trong B có giá trị không bằng 0
+    rows_to_keeptoadomoi = np.where(toadogoimoi[:, 0] != 0)[0]
+    toadogoimoi123=toadogoimoi[rows_to_keeptoadomoi]#xoahang=0
+    print('toadogoimoi123',toadogoimoi123)
+
+
+    #tìm phản lực f3x f3y dựa vào f3y
+    #tinhtoancosd_list = []
+
+    #cosangleBla = []  # cosf'x gối nghiêng để tính fx
+    f3xnew = [] #f3x f3y la lực mới
+    f3ynew = []
+    #sinangleBla = []  # sinf'y gối nghiêng để tính fy
+    for i in  range(len(cosangleBla)):
+        f3x = toadogoimoi123* cosangleBla[i]
+        f3xnew.append(f3x)
+ ####
+        f3y = toadogoimoi123 * sinangleBla[i]
+        f3ynew.append(f3y)
+#
+    print('f3xnew:',f3xnew)
+    print('f3ynew:', f3ynew)
+    # Khởi tạo ma trận mới
+    matranf3xy = []
+    # Sử dụng vòng lặp để thêm các hàng vào ma trận mới
+    for i in range(len(f3xnew)):
+        matranf3xy.append([f3xnew[i], f3ynew[i]])
+
+    # Sử dụng vòng lặp để in ra mỗi ma trận với chỉ số tương ứng của nó
+    for i, matrix in enumerate(matranf3xy):
+        print(f"vậy lực Fx{i + 1} và Fy{i + 1} Fcủa theo phản lực F.d{i + 1}  là:")
+        for row in matrix:
+            print(row)
+        print()  # In ra một dòng trống để phân tách giữa các ma trận
+    print('matranf3xy\n')
+
+    rcdlist123 = []
+
+    for i in range(len(matranf3xy )):
+        if toadogoinghieng[i, 0] == 1:
+            rcdlist123 .append(i)
+    print('rcdlist123 ', rcdlist123)  # các
+
+
+
+
+    # Duyệt qua mỗi phần tử của mảng A
+    for i in range(len(rcdlist123)):
+        # Kiểm tra xem chỉ mục A[i] có vượt quá kích thước của mảng E không
+        if rcdlist123[i] < len(luctotnhat):
+            # Thay thế giá trị từ danh sách D vào hàng tương ứng của ma trận E
+            luctotnhat[rcdlist123[i]] = matranf3xy[i // 2][i % 2]
+        else:
+            print("Chỉ mục", rcdlist123[i], "vượt quá kích thước của mảng rcdlist123")
+        print("Ma trận lực Fx và Fy dựa trên lực f'xlà:",E)
+
+
+    print('\n\nphản lực liên kết là của gối nghiêng là:\n')
+    print(luctotnhat)
+
+    rin = 0
+    for i in range(tn * 2):
+        if dispmat[i, 0] == 1:
+            dispmat[i, 0] = dispresult[rin, 0]
+            rin += 1
+
+    #print('dispmat\n', dispmat)
+
+    # forceresult = numpy.matmul(crgsm, dispmat)
+    ##print(forceresult)
+
+    # print('\n\nphản lực liên kết là:\n')
+    # print(forceresult)
+
+    ##____________________new co ordinates of nodes____________####
+
+    ###____________________new length of memebers______________####
+
+    newxco = []
+    newyco = []
+    count = 0
+    for i in range(tn):
+        k = xco[i] + dispmat[count, 0]
+        newxco.append(k)
+        count = count + 1
+        l = yco[i] + dispmat[count, 0]
+        newyco.append(l)
+        count = count + 1
+        ###____________________new length of memebers______________####
+    newlenofel = []
+    for i in range(te):
+        a, b = snofel[i], enofel[i]
+        x1 = float(newxco[a - 1])
+        y1 = float(newyco[a - 1])
+        x2 = float(newxco[b - 1])
+        y2 = float(newyco[b - 1])
+        l = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        newlenofel.append(l)
+
+    ##print(newlenofel)
+    ##print(lenofel)
+
+    ###______________strain in elements_______________________###
+
+    print('\n***Tính ứng suất, biến dạng và lực dọc trục***\n')
+
+    elstrain = numpy.zeros((te, 1))
+    for i in range(te):
+        elstrain[i, 0] = (newlenofel[i] - lenofel[i]) / (lenofel[i])
+
+    print('\nbiển dạng của phần tử')
+    print(elstrain)
+
+    ###__________________stress in elements______________________###
+    D=float(input('nhập lại module E : '))
+    elstress = numpy.zeros((te, 1))
+    for i in range(te):
+        elstress = D * elstrain
+
+    print('\n\nứng suất phần tử:')
+    print(elstress)
+
+    ###_________________Member forces____________________#########
+    # cosofel.append(cos)
+    # sinofel.append(sin)
+    # print('cosfel\n', cos)
+    # print('sinofel\n', sin)
+    # sup = ['P= A cho từng thanh',
+    # 'I= A cho tổng thanh']
+    eforce = numpy.zeros((te, 1))
+
+    for i in range(te):
+        eforce[i, 0] = A_value[i] * elstress[i, 0]
+
+
+
+    print('\n\nLực dọc trục:')
+    print(eforce)
+
+    ###_________________Member forces____________________#########
+
+    eforce = numpy.zeros((te, 1))
+    for i in range(te):
+        eforce[i, 0] = A * elstress[i, 0]
+
+    #print('\n\nForce in the element')
+    #print(eforce)
+elif  condition3 in['Q', 'q']:
+    displist = []
+    forcelist = []
+    for i in range(tn):
+        a = str('u') + str(i + 1)
+        displist.append(a)
+        b = str('v') + str(i + 1)
+        displist.append(b)
+        c = str('fx') + str(i + 1)
+        forcelist.append(c)
+        d = str('fy') + str(i + 1)
+        forcelist.append(d)
+
+    ##print(displist)
+    ##print(forcelist)
+
+    print('\n\n________________Support Specifications______________\n')
+
+    dispmat = numpy.ones((tn * 2, 1))
+    tsupn = int(input('Enter the total number of nodes having supports : '))  # total number of supported nodes
+    supcondition = ['P = pinned',  # goi co dinh
+                    'H = gối di đông theo phương X   (vertical is free to move)',
+                    'V = gối di động theo phương Y (Horizontal is free to move)']
+
+    for i in range(tsupn):
+        supn = int(input('\nEnter the node number of suuport : '))  # supported node
+        for a in supcondition:
+            print(a)
+
+        condition = str(input('\nEnter the condition of the support : '))
+        if condition in ['P', 'p']:
+            dispmat[supn * 2 - 2, 0] = 0  # DOF theo X =0
+            dispmat[supn * 2 - 1, 0] = 0  # DOF theo y = 0
+        elif condition in ['H', 'h']:
+            dispmat[supn * 2 - 2, 0] = 0
+        elif condition in ['V', 'v']:
+            dispmat[supn * 2 - 1, 0] = 0
+        else:
+            print('Please enter valid entries')
+
+    print('\n\ndựa vào điều kiện biên =>')
+
+    print('ma trận chuyển vị của nút', dispmat)
+
+    for i in range(tsupn):
+        print(f"Node {i + 1} :")
+        if condition in ['P', 'p']:
+            print(f"  Chuyển vị q{(i + 1) * 2 - 1} và q{(i + 1) * 2} = 0")
+        elif condition in ['H', 'h']:
+            print(f"  Chuyển vị q{(i + 1) * 2} = 0")
+        elif condition in ['V', 'v']:
+            print(f"  Chuyển vị q{(i + 1) * 2 - 1} = 0")
+
+    print('\n_________________Loading____________________\n')
+    forcemat = numpy.zeros((tn * 2, 1))
+    tainut= numpy.zeros((tn * 2, 1))
+    tlon = int(input('Enter the total number of loaded nodes : '))  # total number of loaded nodes
+    for i in range(tlon):
+        lon = int(input('\nLực tác dụng vào node nào?: '))
+        sup1 = ['\nP= Có lực nghiêng',
+            'I= không có lực nghiêng']
+
+        print(sup1)
+        con12 = str(input('\nnhập loại lực P thanh : '))
+        if con12 in ['P', 'p']:
+
+        #lon = int(input('\nLực tác dụng vào node nào?: '))  # Loaded node
+            goc = int(input('nhập góc cuủa lực so với phương X: '))
+            nhapluc=int(input('nhập lực tác dụng vào node là : '))
+            fx = nhapluc*math.cos(math.radians(goc))
+            fy = nhapluc*math.sin(math.radians(goc))
+
+            print('lực fx theo góc', fx)
+            print('lực fy theo góc', fy)
+
+            forcemat[lon * 2 - 2, 0] = fx
+            forcemat[lon * 2 - 1, 0] = fy
+            tainut[lon * 2 - 2, 0] = fx
+            tainut[lon * 2 - 1, 0] = fy
+
+            #print('tải tại nút là', forcemat)
+
+
+        elif con12 in ['I', 'i']:
+            #lon = int(input('\nEnter the node number of Loading : '))  # Loaded node
+            fx = float(input('nhập lực Fx in N : '))
+            fy = float(input('nhập lực Fy in N : '))
+
+            forcemat[lon * 2 - 2, 0] = fx
+            forcemat[lon * 2 - 1, 0] = fy
+            tainut[lon * 2 - 2, 0] = fx
+            tainut[lon * 2 - 1, 0] = fy
+
+
+        print('tải tại nút là', tainut)
+
+
+
+
+    ##print(forcemat)
+    ## Thêm lực phân bố đều
+    num_uniform_loads = int(input("Nhập số lượng lực phân bố đều: "))
+
+    for load in range(num_uniform_loads):
+        element_index = int(input(f"Nhập chỉ số element cho lực phân bố đều thứ {load + 1}: "))
+        load_value = float(input(f"Nhập giá trị của lực phân bố đều thứ {load + 1} (N): "))
+
+        # Tính toán và thêm lực phân bố đều vào ma trận tải trọng
+        start_node = snofel[element_index - 1]
+        end_node = enofel[element_index - 1]
+        fx = load_value / 2  # Lực tác động theo phương x
+        fy = load_value / 2  # Lực tác động theo phương y
+
+        forcemat[(start_node - 1) * 2, 0] += fx
+        forcemat[(start_node - 1) * 2 + 1, 0] -= fy
+        forcemat[(end_node - 1) * 2, 0] += fx
+        forcemat[(end_node - 1) * 2 + 1, 0] -= fy
+    trutai =forcemat - tainut#taiphantu
+    print('tải tại phần tử',trutai)
+    print('tải tại nút và phần tử', forcemat)
+
+
+
+    ###_________________Matrix Reduction_________________###
+    #print('2\n', dispmat)
+
+    rcdlist = []
+    for i in range(tn * 2):
+        if dispmat[i, 0] == 0:
+            rcdlist.append(i)
+    print('3\n', dispmat)
+
+    rrgsm = numpy.delete(GSM, rcdlist, 0)  # row reduction
+    crgsm = numpy.delete(rrgsm, rcdlist, 1)  # column reduction
+    rgsm = crgsm  # reduced global stiffness matrix
+    rforcemat = numpy.delete(forcemat, rcdlist, 0)  # reduced force mat
+    rdispmat = numpy.delete(dispmat, rcdlist, 0)  # reduced disp mat
+    #print('4\n', dispmat)
+
+    ###_______________Solving____________________###
+
+    dispresult = numpy.linalg.solve(crgsm, rforcemat)
+    print('disresult\n', dispresult)
+    rin = 0
+    for i in range(tn * 2):
+        if dispmat[i, 0] == 1:
+            dispmat[i, 0] = dispresult[rin, 0]
+            rin += 1
+    # print(xxxxxxzzzzzzdispmat)
+    #print('5\n', dispmat)
+
+    forceresult = numpy.matmul(GSM, dispmat) - forcemat
+    ##print(forceresult)
+
+    print('\n\nGlobal Stiffness Matrix of the Truss\n')
+    print(GSM)
+    # print('dismat\n',dispmat)
+    print('phản lực liên kết là:\n',forceresult)
+    newxco = []
+    newyco = []
+    count = 0
+    for i in range(tn):
+        k = xco[i] + dispmat[count, 0]
+        newxco.append(k)
+        count = count + 1
+        l = yco[i] + dispmat[count, 0]
+        newyco.append(l)
+        count = count + 1
+        ###____________________new length of memebers______________####
+    newlenofel = []
+    for i in range(te):
+        a, b = snofel[i], enofel[i]
+        x1 = float(newxco[a - 1])
+        y1 = float(newyco[a - 1])
+        x2 = float(newxco[b - 1])
+        y2 = float(newyco[b - 1])
+        l = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        newlenofel.append(l)
+
+    ##print(newlenofel)
+    ##print(lenofel)
+
+    ###______________strain in elements_______________________###
+
+    print('\n***Tính ứng suất, biến dạng và lực dọc trục***\n')
+
+    elstrain = numpy.zeros((te, 1))
+    for i in range(te):
+        elstrain[i, 0] = (newlenofel[i] - lenofel[i]) / (lenofel[i])
+
+    print('\nbiển dạng của phần tử')
+    print(elstrain)
+
+    ###__________________stress in elements______________________###
+
+    elstress = numpy.zeros((te, 1))
+    for i in range(te):
+        elstress = E * elstrain
+
+    print('\n\nứng suất phần tử:')
+    # print(elstress)
+
+    ###_________________Member forces____________________#########
+    #cosofel.append(cos)
+    #sinofel.append(sin)
+    #print('cosfel\n', cos)
+    #print('sinofel\n', sin)
+    #sup = ['P= A cho từng thanh',
+           #'I= A cho tổng thanh']
+
+    eforce = numpy.zeros((te, 1))
+    for i in range(te):
+        eforce[i, 0] = A_value[i] * elstress[i, 0]
+
+    print('\n\nLực dọc trục:')
+    print(eforce)
+    #print('\n\nDisplacement matrix of nodes\n')
+    #   print('6\n', dispmat)
+    #print('\n\nForce matrix of nodes\n')
+    #print(forceresult)
+###____________________new length of memebers______________####
+#print('snofel',snofel)
+#print('enofel',enofel)
+##____________________new co ordinates of nodes____________####
+#print('dismat\n',dispmat)
+
+
+
+if con in ['P', 'p']:
+    B_values= []
+    #A=float(input('Nhập diện tích tiết diện A của phần tử ' + str(i + 1) + ' trong m2: '))
+    for i in range(te):
+        A = float(input('Nhập diện tích tiết diện A của phần tử ' + str(i + 1) + ' trong m2: '))
+        a = int(input('nhập node đầu của element' + str(i + 1) + ' : '))
+        b = int(input('nhập node saucủa element ' + str(i + 1) + ' : '))
+
+        x1 = float(xco[a - 1])
+        y1 = float(yco[a - 1])
+        x2 = float(xco[b - 1])
+        y2 = float(yco[b - 1])
+        l = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        con = A * E / l
+        cos = (x2 - x1) / l
+        sin = (y2 - y1) / l
+
+        snofel.append(a)
+        enofel.append(b)
+        lenofel.append(l)
+        elcon.append(con)
+        cosofel.append(cos)
+        sinofel.append(sin)
+        B_values.append(A)
+elif  con in ['I', 'i']:
+    A = float(input('Nhập diện tích tiết diện A  trong m2: '))
+    for i in range(te):
+        #A = float(input('Nhập diện tích tiết diện A của phần tử ' + str(i + 1) + ' trong m2: '))
+        a = int(input('nhập node đầu của element' + str(i + 1) + ' : '))
+        b = int(input('nhập node saucủa element ' + str(i + 1) + ' : '))
+
+        x1 = float(xco[a - 1])
+        y1 = float(yco[a - 1])
+        x2 = float(xco[b - 1])
+        y2 = float(yco[b - 1])
+        l = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        con = A * E / l
+        cos = (x2 - x1) / l
+        sin = (y2 - y1) / l
+
+        snofel.append(a)
+        enofel.append(b)
+        lenofel.append(l)
+        elcon.append(con)
+        cosofel.append(cos)
+        sinofel.append(sin)
+        #A_values.append(A)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
